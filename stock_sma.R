@@ -97,12 +97,12 @@ t_200 <- t_sma(stock_c,"close","sma200", 1.05)
 t_200_ema_lace <- function (stock_c, t200,t30)
 {
 t1<-sqldf("select t200.*, t30.Start_Date as t30_Start_Date, t30.End_Date as t30_End_Date, t30.start_price as t30_start_price,
-          (sc.sma10 > sc.ema30) as EMA_CURR
-from t_200 t200
+          (sc.sma10 > sc.ema30) as EMA_CUR, (sc.sma50 > sc.sma200) as SMA50_200_CUR, (sc.close > sc.sma50) as CLOSE_50_CUR
+from t200 t200
           join stock_c sc
           on t200.ticker = sc.ticker
           and t200.Start_Date = sc.date
-          left join t_30 t30
+          left join t30 t30
           on t200.ticker = t30.ticker
           and t200.Start_Date < t30.Start_Date
           and t200.End_Date > t30.Start_Date
@@ -112,6 +112,33 @@ t1<-t1[,valRank:=rank(t30_Start_Date),by=trend_id]
 t1<-t1[t1$valRank==1]
 return (t1)
 }
+
+aggregate( 100*((t2$end_price-t2$start_price)/t2$start_price), list(Cont_SMA = t2$CLOSE_50_CUR), mean)
+
+t_quick_200 <- function(ticker)
+{
+  f_stock_c<-stock_sma_dat(ticker)
+  f_t200<-t_sma(f_stock_c,"close","sma200",1.04)
+  f_t30<-t_sma(f_stock_c,"sma10","ema30")
+  
+  t2<-t_200_ema_lace(f_stock_c,f_t200,f_t30)
+ 
+  ##fa<- aggregate( 100*((t2$end_price-t2$start_price)/t2$start_price), list(CLOSE_SMA50 = t2$CLOSE_50_CUR), mean)
+ 
+fa<- sqldf("select t2.CLOSE_50_CUR, 100*((t2.end_price-t2.start_price)/t2.start_price) as START_END, 
+ 100*((t2.max_close-t2.start_price)/t2.start_price) as START_MAX
+  from t2 t2
+group by t2.CLOSE_50_CUR")
+
+ names(fa) <- c("CLOSE_SMA50","PCT_Chng_Start_End","PCT_Chng_Start_Max") 
+ return(fa)
+}
+
+y<-sqldf("select 100*((t2.end_price-t2.start_price)/t2.start_price) as START_END, 
+ 100*((t2.max_close-t2.start_price)/t2.start_price) as START_MAX, t2.CLOSE_50_CUR
+  from t2 t2
+group by CLOSE_50_CUR")
+
 
 entries<-stock_c[(stock_c$date %in% t30$Start_Date) & stock_c$sma50>stock_c$sma200 & stock_c$close>stock_c$sma200 ,]
 ## get the exits
