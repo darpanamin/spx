@@ -3,6 +3,7 @@ library(TTR)
 library(dplyr)
 library(data.table)
 library(sqldf)
+library(tcltk)
 
 stock_dat <-getSymbols("MSFT",auto.assign = FALSE)
 stock_close<-as.data.frame(stock_dat[,4])
@@ -94,8 +95,12 @@ t_200 <- t_sma(stock_c,"close","sma200", 1.05)
 
 ## for each close over 200 SMA trend get first EMA crossover
 
-t1<-sqldf("select t200.*, t30.Start_Date as t30_Start_Date, t30.End_Date as t30_End_Date, t30.start_price
+t1<-sqldf("select t200.*, t30.Start_Date as t30_Start_Date, t30.End_Date as t30_End_Date, t30.start_price as t30_start_price,
+          (sc.sma10 > sc.ema30) as EMA_CURR
 from t_200 t200
+          join stock_c sc
+          on t200.ticker = sc.ticker
+          and t200.Start_Date = sc.date
           left join t_30 t30
           on t200.ticker = t30.ticker
           and t200.Start_Date < t30.Start_Date
