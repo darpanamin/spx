@@ -94,7 +94,8 @@ t_200 <- t_sma(stock_c,"close","sma200", 1.05)
 ## get the possible entries
 
 ## for each close over 200 SMA trend get first EMA crossover
-
+t_200_ema_lace <- function (stock_c, t200,t30)
+{
 t1<-sqldf("select t200.*, t30.Start_Date as t30_Start_Date, t30.End_Date as t30_End_Date, t30.start_price as t30_start_price,
           (sc.sma10 > sc.ema30) as EMA_CURR
 from t_200 t200
@@ -108,7 +109,9 @@ from t_200 t200
           ")
 t1<-setDT(t1)
 t1<-t1[,valRank:=rank(t30_Start_Date),by=trend_id]
-t1[t1$valRank==1]
+t1<-t1[t1$valRank==1]
+return (t1)
+}
 
 entries<-stock_c[(stock_c$date %in% t30$Start_Date) & stock_c$sma50>stock_c$sma200 & stock_c$close>stock_c$sma200 ,]
 ## get the exits
