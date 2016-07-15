@@ -125,14 +125,37 @@ t_quick_200 <- function(ticker)
  
   ##fa<- aggregate( 100*((t2$end_price-t2$start_price)/t2$start_price), list(CLOSE_SMA50 = t2$CLOSE_50_CUR), mean)
  
-fa<- sqldf("select t2.CLOSE_50_CUR, 100*((t2.end_price-t2.start_price)/t2.start_price) as START_END, 
- 100*((t2.max_close-t2.start_price)/t2.start_price) as START_MAX
+fa<- sqldf("select t2.CLOSE_50_CUR, avg(100*((t2.end_price-t2.start_price)/t2.start_price)) as START_END, 
+ avg(100*((t2.max_close-t2.start_price)/t2.start_price)) as START_MAX
   from t2 t2
 group by t2.CLOSE_50_CUR")
 
  names(fa) <- c("CLOSE_SMA50","PCT_Chng_Start_End","PCT_Chng_Start_Max") 
  return(fa)
 }
+
+t_slope <- function(ticker)
+{
+  stock_c <- stock_c <-stock_sma_dat(ticker)
+ ts50<- ((stock_c[nrow(stock_c),c("sma50")] - stock_c[(nrow(stock_c)-35),c("sma50")])/35)/stock_c[(nrow(stock_c)-35),c("sma50")]
+ ts200<- ((stock_c[nrow(stock_c),c("sma200")] - stock_c[(nrow(stock_c)-35),c("sma200")])/35)/stock_c[(nrow(stock_c)-35),c("sma200")]
+ ts10<- ((stock_c[nrow(stock_c),c("sma10")] - stock_c[(nrow(stock_c)-35),c("sma10")])/35)/stock_c[(nrow(stock_c)-35),c("sma10")]
+ slope_table <- data.frame(ticker,100*ts10,100*ts50,100*ts200)
+ names(slope_table)<-c("ticker","ts10","ts50","ts200")
+ return(slope_table)
+}
+
+
+j<-do.call("rbind", lapply(stocks$Symbol,t_slope)) 
+j[j$ts50>0|j$ts10>0|j$ts200>0,]
+
+t_slope_sum <-function(stock_ticker_list)
+{
+  j<-do.call("rbind", lapply(stock_ticker_list,t_slope)) 
+  j[j$ts50>0|j$ts10>0|j$ts200>0,]
+  return(j)
+}
+
 
 y<-sqldf("select 100*((t2.end_price-t2.start_price)/t2.start_price) as START_END, 
  100*((t2.max_close-t2.start_price)/t2.start_price) as START_MAX, t2.CLOSE_50_CUR
