@@ -17,9 +17,9 @@ stock_close$sma200 <- SMA(stock_close$close,200)
 stock_sma_dat <- function(stock_ticker)
 {
   suppressWarnings(stock_dat <-getSymbols(stock_ticker,auto.assign = FALSE))
-  stock_close<-as.data.frame(stock_dat[,4])
+  stock_close<-as.data.frame(stock_dat[,c(4,5)])
   stock_close$date <-rownames(stock_close)
-  names(stock_close) <-c("close","date")
+  names(stock_close) <-c("close","volume","date")
   
   stock_close$sma50 <- SMA(stock_close$close,50)
   stock_close$sma200 <- SMA(stock_close$close,200)
@@ -50,7 +50,8 @@ t_sma <- function(stock_c,topMA = "sma50", bottomMA = "sma200", top_bias = 1.0)
   if(toupper(bottomMA) == "EMA30") bottomLine <- stock_c$ema30
   if(toupper(bottomMA) == "CLOSE") bottomLine <- stock_c$close
   
-  test_frame <-stock_c[,c(2,7)]
+   # 2 = date 7 = ticker
+  test_frame <-stock_c[,c(3,8)]
   test_frame<-cbind(test_frame,topLine)
   test_frame<-cbind(test_frame,bottomLine)
   rownames(test_frame) <- 1:nrow(test_frame)
@@ -67,7 +68,7 @@ end_up<- as.integer(test_frame[((topLine>bottomLine) & (NEXT_COND == FALSE)) | (
    
   ## get up trend start and end dates
   
-  trend_table <- data.frame(stock_c[start_up,2],stock_c[end_up,2])
+  trend_table <- data.frame(stock_c[start_up,3],stock_c[end_up,3])
   
   names(trend_table) <- c("Start_Date","End_Date")
   trend_table$trend_days <- as.integer(difftime(trend_table$End_Date,trend_table$Start_Date,units = "days"))
@@ -187,3 +188,6 @@ big<-big[,valRank:=rank(days_from_entry),by="date"]
 big$price_change<-big$end_price-big$close
 
 peak_close<-sqldf("select  max(sc.close) ,t.Start_Date, t.trend_id from stock_c sc,t_50 t where sc.date between t.Start_Date and t.End_Date group by t.Start_Date, t.trend_id")
+
+
+t_sma(stock_sma_dat("TGT"),"close","sma200",1.02)
