@@ -20,12 +20,22 @@ stock_sma_dat <- function(stock_ticker)
   stock_close<-as.data.frame(stock_dat[,c(4,5)])
   stock_close$date <-rownames(stock_close)
   names(stock_close) <-c("close","volume","date")
+  if (nrow(stock_close)<200){stock_close$sma200<-NA; return(stock_close[complete.cases(stock_close),]);}
   
-  stock_close$sma50 <- SMA(stock_close$close,50)
-  stock_close$sma200 <- SMA(stock_close$close,200)
+  if( (nrow(stock_close)>50)) {stock_close$sma50 <-SMA(stock_close$close,50)} else {stock_close$sma50 <-NA}
+  
+   if( (nrow(stock_close)>200)) {stock_close$sma200 <-SMA(stock_close$close,200)} else {stock_close$sma200 <-NA}
+          
   stock_close$sma10 <- SMA(stock_close$close,10)
   stock_close$ema30 <- EMA(stock_close$close, 30)
   stock_close$ticker <- stock_ticker
+  
+  stock_close$vol20 <- SMA(stock_close$volume,20)
+  stock_close$vol50 <- SMA(stock_close$volume,50)
+  if( (nrow(stock_close)>200)) {stock_close$vol200 <- SMA(stock_close$volume,200)} else {stock_close$vol200 <-NA}
+  
+  
+  
   stock_close<-stock_close[complete.cases(stock_close),]
   
   
@@ -138,17 +148,20 @@ group by t2.CLOSE_50_CUR")
 t_slope <- function(ticker)
 {
   stock_c <- stock_c <-stock_sma_dat(ticker)
+  if (nrow(stock_c)==0) {return()}
  ts50<- ((stock_c[nrow(stock_c),c("sma50")] - stock_c[(nrow(stock_c)-35),c("sma50")])/35)/stock_c[(nrow(stock_c)-35),c("sma50")]
  ts200<- ((stock_c[nrow(stock_c),c("sma200")] - stock_c[(nrow(stock_c)-35),c("sma200")])/35)/stock_c[(nrow(stock_c)-35),c("sma200")]
  ts10<- ((stock_c[nrow(stock_c),c("sma10")] - stock_c[(nrow(stock_c)-35),c("sma10")])/35)/stock_c[(nrow(stock_c)-35),c("sma10")]
- slope_table <- data.frame(ticker,100*ts10,100*ts50,100*ts200)
- names(slope_table)<-c("ticker","ts10","ts50","ts200")
+ 
+ vs20<- ((stock_c[nrow(stock_c),c("vol20")] - stock_c[(nrow(stock_c)-35),c("vol20")])/35)/stock_c[(nrow(stock_c)-35),c("vol20")]
+ vs50<- ((stock_c[nrow(stock_c),c("vol50")] - stock_c[(nrow(stock_c)-35),c("vol50")])/35)/stock_c[(nrow(stock_c)-35),c("vol50")]
+ vs200<- ((stock_c[nrow(stock_c),c("vol200")] - stock_c[(nrow(stock_c)-35),c("vol200")])/35)/stock_c[(nrow(stock_c)-35),c("vol200")]
+ 
+ slope_table <- data.frame(ticker,100*ts10,100*ts50,100*ts200,100*vs20,100*vs50,100*vs200)
+ names(slope_table)<-c("ticker","ts10","ts50","ts200","vs20","vs50","vs200")
  return(slope_table)
 }
 
-
-j<-do.call("rbind", lapply(stocks$Symbol,t_slope)) 
-j[j$ts50>0|j$ts10>0|j$ts200>0,]
 
 t_slope_sum <-function(stock_ticker_list)
 {
@@ -157,6 +170,8 @@ t_slope_sum <-function(stock_ticker_list)
   return(j)
 }
 
+j<-t_slope_sum(stocksp[1:299,c("Symbol")])
+j[j$vs50>0 & j$ts200>0,]
 
 y<-sqldf("select 100*((t2.end_price-t2.start_price)/t2.start_price) as START_END, 
  100*((t2.max_close-t2.start_price)/t2.start_price) as START_MAX, t2.CLOSE_50_CUR
@@ -188,6 +203,5 @@ big<-big[,valRank:=rank(days_from_entry),by="date"]
 big$price_change<-big$end_price-big$close
 
 peak_close<-sqldf("select  max(sc.close) ,t.Start_Date, t.trend_id from stock_c sc,t_50 t where sc.date between t.Start_Date and t.End_Date group by t.Start_Date, t.trend_id")
-
 
 t_sma(stock_sma_dat("TGT"),"close","sma200",1.02)
